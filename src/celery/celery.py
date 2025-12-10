@@ -19,7 +19,7 @@ def create_celery() -> Celery:
 celery_app = create_celery()
 
 
-@celery_app.task(bind=True)  # type: ignore[untyped-decorator]
+@celery_app.task(bind=True)
 def debug_celery_task() -> str:
     logger.info("Debug celery task")
     return "Celery tasks debug successfully"
