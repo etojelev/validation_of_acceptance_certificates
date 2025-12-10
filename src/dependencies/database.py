@@ -4,6 +4,9 @@ from typing import Any
 
 import asyncpg
 
+from src.settings import get_settings
+from src.utils.decorators import error_handler
+
 
 class DatabasePoolManager:
     """Класс для управления пулом соединений."""
@@ -51,3 +54,41 @@ class DatabasePoolManager:
     async def execute(self, query: str, *args: Any, **kwargs: Any) -> Any:
         async with self.pool.acquire() as connection:
             return await connection.execute(query, *args, **kwargs)
+
+
+database_pool_manager = DatabasePoolManager(
+    user=get_settings().POSTGRES_USER,
+    password=get_settings().POSTGRES_PASSWORD,
+    db=get_settings().POSTGRES_DB,
+    host=get_settings().POSTGRES_HOST,
+    port=get_settings().POSTGRES_PORT,
+    pool_size=get_settings().POOL_SIZE,
+)
+
+celery_pool_manager = DatabasePoolManager(
+    user=get_settings().POSTGRES_USER,
+    password=get_settings().POSTGRES_PASSWORD,
+    db=get_settings().POSTGRES_DB,
+    host=get_settings().POSTGRES_HOST,
+    port=get_settings().POSTGRES_PORT,
+    pool_size=get_settings().POOL_SIZE,
+)
+
+
+@error_handler()
+async def check_pool_created() -> None:
+    if not database_pool_manager.pool:
+        await database_pool_manager.create_pool()
+    await database_pool_manager.execute("SELECT 1")
+
+    if not celery_pool_manager.pool:
+        await celery_pool_manager.create_pool()
+
+
+@error_handler()
+async def check_pool_stopped() -> None:
+    if database_pool_manager.pool:
+        await database_pool_manager.pool.close()
+
+    if celery_pool_manager.pool:
+        await celery_pool_manager.pool.close()
