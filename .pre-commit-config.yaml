@@ -6,4 +6,4 @@ repos:
       entry: make
       language: system
       pass_filenames: false
-      args: ["check"]
+      args: ["pre-commit-check"]

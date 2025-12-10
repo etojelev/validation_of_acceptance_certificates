@@ -18,7 +18,7 @@ fmt:
 	uv run ruff format $(PY_SRCS)
 
 type:
-	uv run mypy $(PY_SRCS)
+	uv run mypy $(PY_SRCS) --config-file pyproject.toml
 
 security:
 	uv run bandit -r src -lll -x .venv,venv,build,dist,migrations
