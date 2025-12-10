@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = Field(default=5432)
     POOL_SIZE: int = Field(default=5)
 
+    REDIS_HOST: str = Field(default="redis")
+    REDIS_PORT: int = Field(default=6379)
+    REDIS_DB: int = Field(default=0)
+    REDIS_PASSWORD: str = Field(default="")
+    CACHE_TTL: int = Field(default=3600)
+    CACHE_REFRESH_INTERVAL: int = Field(default=3600)
+
     CELERY_BROKER_URL: str = Field(default="amqp://guest:guest@localhost")
     CELERY_RESULT_BACKEND: str = Field(default="amqp://guest:guest@localhost")
     CELERY_TIMEZONE: str = Field(default="UTC")
