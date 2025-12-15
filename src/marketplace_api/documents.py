@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any
+import asyncio
+import aiohttp.client_exceptions
 
 from src.account import Account
 from src.documents_validation.schema import DocumentSchema
@@ -49,7 +51,22 @@ class Documents(Account):
         }
 
         async with self.async_client as session:
-            response = await session.post(
-                url=f"{self.base_url}/download/all", json=payload, headers=self.headers
-            )
-            return response
+            retries = 0
+
+            while retries < self.async_client.retries:
+                try:
+                    response = await session.post(
+                        url=f"{self.base_url}/download/all", json=payload, headers=self.headers
+                    )
+                    return response['data']['document']
+                except aiohttp.client_exceptions.ClientResponseError as error:
+                    if error.status == 429:
+                        retries += 1
+                        logger.error(f"""
+                        Account: {self.account}.Status code: {error.status}.
+                        Превышен лимит запросов, попытка {retries + 1}. Ожидание: 5 минут""")
+
+                        if retries > self.async_client.retries:
+                            logger.error(f"Account: {self.account}. Достигнут лимит попыток")
+                        await asyncio.sleep(300)
+            return None

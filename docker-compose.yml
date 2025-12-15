@@ -49,7 +49,7 @@ services:
       - CELERY_TASK_TIME_LIMIT=${CELERY_TASK_TIME_LIMIT:-120}
     volumes:
       - .:/app
-    command: uv run celery -A src.celery worker --loglevel=info --concurrency=4
+    command: celery -A src.celery worker --loglevel=info --concurrency=4
 
   celery_beat:
     build:
@@ -81,7 +81,7 @@ services:
       - "8310:5555"
     volumes:
       - .:/app
-    command: uv run celery -A src.celery flower --port=5555 --broker=${CELERY_BROKER_URL}
+    command: celery -A src.celery flower --port=5555 --broker=${CELERY_BROKER_URL}
 
 volumes:
   redis_data:
