@@ -1,7 +1,8 @@
+import asyncio
 from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Any
-import asyncio
+
 import aiohttp.client_exceptions
 
 from src.account import Account
@@ -56,9 +57,11 @@ class Documents(Account):
             while retries < self.async_client.retries:
                 try:
                     response = await session.post(
-                        url=f"{self.base_url}/download/all", json=payload, headers=self.headers
+                        url=f"{self.base_url}/download/all",
+                        json=payload,
+                        headers=self.headers,
                     )
-                    return response['data']['document']
+                    return response["data"]["document"]
                 except aiohttp.client_exceptions.ClientResponseError as error:
                     if error.status == 429:
                         retries += 1
@@ -67,6 +70,8 @@ class Documents(Account):
                         Превышен лимит запросов, попытка {retries + 1}. Ожидание: 5 минут""")
 
                         if retries > self.async_client.retries:
-                            logger.error(f"Account: {self.account}. Достигнут лимит попыток")
+                            logger.error(
+                                f"Account: {self.account}. Достигнут лимит попыток"
+                            )
                         await asyncio.sleep(300)
             return None

@@ -46,4 +46,14 @@ async def get_documents() -> dict[str, Any] | Any:
     return await document_service.download_documents()
 
 
+@docs.get("/documents/data", status_code=status.HTTP_200_OK)
+async def get_documents_data() -> dict[str, Any] | Any:
+    document_service = DocumentsService()
+    data = await document_service.extract_and_parce_excel()
+
+    total_files = len(data)
+
+    return {"status": "success", "total_accounts": total_files, "data": data}
+
+
 app.include_router(docs)
