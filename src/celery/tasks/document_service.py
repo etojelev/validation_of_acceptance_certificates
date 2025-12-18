@@ -72,7 +72,7 @@ class DocumentsService:
                 str(order_data["sticker"]),
                 int(order_data["count"]),
                 f"act-income-mp-{item['supply_id'].split('-')[-1]}.zip",
-                item["supply_id"].split("-")[0],
+                item["supply_id"].split("-")[-1],
                 date.fromisoformat(item["date"]),
                 item["account"],
             )
