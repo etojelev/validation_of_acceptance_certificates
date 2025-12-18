@@ -21,20 +21,27 @@ class DatabasePoolManager:
         self._database = db
         self.pool_size = pool_size
         self.dsn = f"postgres://{self._user}:{self._password}@{self._host}:{self._port}/{self._database}"
+        self.pool: asyncpg.pool.Pool | None = None
 
-    async def create_pool(self) -> asyncpg.pool.Pool | None:
+    async def create_pool(self) -> asyncpg.pool.Pool:
         """Создание пула соединений."""
-        self.pool = asyncpg.pool.create_pool(
-            dsn=self.dsn, min_size=self.pool_size, max_size=self.pool_size + 15
-        )
+        if self.pool is None:
+            self.pool = await asyncpg.pool.create_pool(
+                dsn=self.dsn, min_size=self.pool_size, max_size=self.pool_size + 15
+            )
         return self.pool
+
+    async def close(self) -> None:
+        if self.pool:
+            await self.pool.close()
+            self.pool = None
 
     @asynccontextmanager
     async def connection(self) -> AsyncGenerator[asyncpg.Connection, None]:
         """Получение соединения из пула."""
-        if not self.pool:
+        if not self.pool is not None:
             await self.create_pool()
-
+        assert self.pool is not None
         async with self.pool.acquire() as connection:
             yield connection
 
@@ -42,18 +49,26 @@ class DatabasePoolManager:
         self, query: str, *args: Any, **kwargs: Any
     ) -> asyncpg.protocol.Record:
         """Выполнение запроса с возвратом множества значений."""
+        assert self.pool is not None
         async with self.pool.acquire() as connection:
             return await connection.fetch(query, *args, **kwargs)
 
     async def fetchrow(
         self, query: str, *args: Any, **kwargs: Any
     ) -> asyncpg.protocol.Record:
+        assert self.pool is not None
         async with self.pool.acquire() as connection:
             return await connection.fetchrow(query, *args, **kwargs)
 
     async def execute(self, query: str, *args: Any, **kwargs: Any) -> Any:
+        assert self.pool is not None
         async with self.pool.acquire() as connection:
             return await connection.execute(query, *args, **kwargs)
+
+    async def executemany(self, query: str, *args: Any, **kwargs: Any) -> Any:
+        assert self.pool is not None
+        async with self.pool.acquire() as connection:
+            return await connection.executemany(query, *args, **kwargs)
 
 
 database_pool_manager = DatabasePoolManager(

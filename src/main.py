@@ -2,11 +2,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, status
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from src.dependencies.database import check_pool_created, check_pool_stopped
-from src.documents_validation.service import DocumentsService
 
 
 @asynccontextmanager
@@ -36,24 +35,3 @@ def start_application() -> FastAPI:
 
 
 app = start_application()
-
-docs = APIRouter()
-
-
-@docs.get("/documents", status_code=status.HTTP_200_OK)
-async def get_documents() -> dict[str, Any] | Any:
-    document_service = DocumentsService()
-    return await document_service.download_documents()
-
-
-@docs.get("/documents/data", status_code=status.HTTP_200_OK)
-async def get_documents_data() -> dict[str, Any] | Any:
-    document_service = DocumentsService()
-    data = await document_service.extract_and_parce_excel()
-
-    total_files = len(data)
-
-    return {"status": "success", "total_accounts": total_files, "data": data}
-
-
-app.include_router(docs)

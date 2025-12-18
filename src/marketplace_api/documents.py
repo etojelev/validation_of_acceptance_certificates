@@ -69,9 +69,9 @@ class Documents(Account):
                         Account: {self.account}.Status code: {error.status}.
                         Превышен лимит запросов, попытка {retries + 1}. Ожидание: 5 минут""")
 
-                        if retries > self.async_client.retries:
-                            logger.error(
-                                f"Account: {self.account}. Достигнут лимит попыток"
-                            )
+                        # if retries > self.async_client.retries:
+                        #     logger.error(
+                        #         f"Account: {self.account}. Достигнут лимит попыток"
+                        #     )
                         await asyncio.sleep(300)
             return None
