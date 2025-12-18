@@ -1,5 +1,4 @@
 services:
-
   validation-of-acceptance-certificates-app:
     build:
       context: .
@@ -12,6 +11,7 @@ services:
       - .env
     environment:
       - REDIS_HOST=redis
+      - POSTGRES_HOST=172.17.0.1
     ports:
       - "8309:8009"
 
@@ -33,23 +33,21 @@ services:
     restart: always
     depends_on:
       - redis
-      - validation-of-acceptance-certificates-app
     environment:
       - REDIS_HOST=redis
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_DB=${REDIS_DB:-0}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - CELERY_TIMEZONE=${CELERY_TIMEZONE:-UTC}
-      - CELERY_RESULT_EXPIRES=${CELERY_RESULT_EXPIRES:-3600}
-      - CELERY_WORKER_PREFETCH_MULTIPLIER=${CELERY_WORKER_PREFETCH_MULTIPLIER:-1}
-      - CELERY_WORKER_MAX_TASKS_PER_CHILD=${CELERY_WORKER_MAX_TASKS_PER_CHILD:-1000}
-      - CELERY_TASK_SOFT_TIME_LIMIT=${CELERY_TASK_SOFT_TIME_LIMIT:-60}
-      - CELERY_TASK_TIME_LIMIT=${CELERY_TASK_TIME_LIMIT:-120}
+      - POSTGRES_HOST=172.17.0.1
     volumes:
       - .:/app
-    command: celery -A src.celery worker --loglevel=info --concurrency=4
+    command:
+      sh -c "
+        sleep 5 &&
+        celery -A src.celery.celery:celery_app worker 
+          --loglevel=info 
+          --concurrency=4 
+          --hostname=worker@%h
+      "
 
   celery_beat:
     build:
@@ -58,12 +56,24 @@ services:
     container_name: validation_celery_beat
     restart: always
     depends_on:
-      redis:
-        condition: service_started
+      - redis
     env_file:
       - .env
     environment:
       - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - POSTGRES_HOST=172.17.0.1
+    volumes:
+      - .:/app
+      - celery_beat_data:/tmp
+    command:
+      sh -c "
+        sleep 10 &&
+        celery -A src.celery.celery:celery_app beat 
+          --loglevel=info 
+          --scheduler=celery.beat.PersistentScheduler 
+          --schedule=/tmp/celerybeat-schedule
+      "
 
   flower:
     build:
@@ -76,12 +86,17 @@ services:
       - celery_worker
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_TIMEZONE=${CELERY_TIMEZONE:-UTC}
     ports:
       - "8310:5555"
     volumes:
       - .:/app
-    command: celery -A src.celery flower --port=5555 --broker=${CELERY_BROKER_URL}
+    command:
+      sh -c "
+        sleep 15 &&
+        celery -A src.celery.celery:celery_app flower 
+          --port=5555 
+          --broker=${CELERY_BROKER_URL}
+      "
 
 volumes:
   redis_data:
