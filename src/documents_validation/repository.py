@@ -21,3 +21,10 @@ class DocumentsRepository:
         """
 
         await self.database.executemany(query, certificates)
+
+    async def get_data_for_healthcheck(self) -> None:
+        query = """
+        SELECT * FROM acceptance_fbs_acts_new
+        WHERE created_at = CURRENT_DATE;
+        """
+        await self.database.execute(query)
