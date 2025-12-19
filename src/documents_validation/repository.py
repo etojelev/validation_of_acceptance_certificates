@@ -1,6 +1,8 @@
 from logging import getLogger
 from typing import Any
 
+from asyncpg.protocol import Record
+
 from src.dependencies.database import DatabasePoolManager
 
 logger = getLogger(__name__)
@@ -22,9 +24,10 @@ class DocumentsRepository:
 
         await self.database.executemany(query, certificates)
 
-    async def get_data_for_healthcheck(self) -> None:
+    async def get_data_for_healthcheck(self) -> Record | None:
         query = """
         SELECT * FROM acceptance_fbs_acts_new
-        WHERE created_at = CURRENT_DATE;
+        WHERE created_at = CURRENT_DATE
+        LIMIT 1;
         """
-        await self.database.execute(query)
+        return await self.database.fetchrow(query)
