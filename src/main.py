@@ -8,6 +8,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.dependencies.database import DatabasePoolManager
 from src.handle_trigger.update_acceptance_certificates.router import update_certificates
+from src.healthcheck.router import healthcheck
 from src.settings import get_settings
 
 logger = getLogger(__name__)
@@ -57,6 +58,7 @@ def start_application() -> FastAPI:
 app = start_application()
 
 app.include_router(update_certificates)
+app.include_router(healthcheck)
 
 
 @app.get("/")

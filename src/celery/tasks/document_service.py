@@ -4,11 +4,10 @@ from datetime import date, datetime, timedelta
 from logging import getLogger
 from typing import Any
 
-from asyncpg import Record
-
 from src.celery.celery import celery_app
 from src.dependencies.database import DatabasePoolManager
 from src.documents_validation.repository import DocumentsRepository
+from src.healthcheck.service import HealthcheckRepository, HealthcheckService
 from src.marketplace_api.documents import Documents
 from src.response import AsyncHttpClient
 from src.utils.utils import extract_excel_from_zip, get_tokens
@@ -89,9 +88,6 @@ class DocumentsService:
         if len(fresh_data) > 0:
             await self.documents_repository.update_acceptance_certificates(fresh_data)
 
-    async def healthcheck(self) -> Record:
-        return await self.documents_repository.get_data_for_healthcheck()
-
 
 @celery_app.task(name="update_acceptance_certificates_task")
 def auto_update_acceptance_certificates() -> None:
@@ -158,6 +154,7 @@ async def _healthcheck() -> None:
     from src.settings import get_settings
 
     pool = None
+    healthcheck_status = False
     try:
         pool = DatabasePoolManager(
             user=get_settings().POSTGRES_USER,
@@ -170,11 +167,13 @@ async def _healthcheck() -> None:
 
         await pool.create_pool()
 
+        healthcheck_repository = HealthcheckRepository(database=pool)
+        healthcheck_service = HealthcheckService(repository=healthcheck_repository)
         document_service = DocumentsService(pool)
 
         logger.info("Проверка пополнения таблицы acceptance_fbs_acts_new")
 
-        data = await document_service.healthcheck()
+        data = await healthcheck_service.healthcheck()
         if data:
             logger.info("Проверка данных успешно завершена!")
 
@@ -184,6 +183,12 @@ async def _healthcheck() -> None:
             )
             await document_service._sync_update_acceptance_certificates()
             logger.info("Данные успешно обновлены!")
+            healthcheck_status = True
+
+        if healthcheck_status:
+            status_data = [datetime.now(), True, False, False]
+            await healthcheck_service.update_healthcheck_status(status_data=status_data)
+
     except Exception as error:
         logger.error(
             f"Ошибка в выполнении периодической задачи обновления актов приема передачи: {error}"
