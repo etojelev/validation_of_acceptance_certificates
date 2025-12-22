@@ -4,6 +4,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
+from fastapi import HTTPException
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,5 +47,31 @@ def error_handler(
                     return default_return
 
             return wrapper
+
+    return decorator
+
+
+def error_handler_http(
+    status_code: int,
+    message: str = "Internal server error",
+    exceptions: tuple = (Exception,),
+) -> Callable:
+    """Декоратор для поднятия HTTPException при обнаружении исключения.
+
+    :pparam status_code: возвращаемый HTTP статус код при исключении.
+    :param message: возвращаемое сообщение при исключении.
+    :param exceptions: кортеж обрабатываемых исключений.
+    """
+
+    def decorator(func: Callable) -> Callable | Any:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Callable | Any:
+            try:
+                return await func(*args, **kwargs)
+            except exceptions as error:
+                logger.error("Ошибка в %s: %s", func.__name__, error)
+                raise HTTPException(status_code=status_code, detail=message) from error
+
+        return wrapper
 
     return decorator
