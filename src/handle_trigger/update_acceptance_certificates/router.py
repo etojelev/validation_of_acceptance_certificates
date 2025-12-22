@@ -5,9 +5,7 @@ from src.dependencies.handle_trigger.update_acceptance_certificates import (
     get_documents_validation_repository,
 )
 
-update_certificates = APIRouter(
-    prefix="/system/handle_trigger", tags=["/system/handle_trigger"]
-)
+update_certificates = APIRouter(prefix="/handle_trigger", tags=["/handle_trigger"])
 
 
 @update_certificates.post("/update_acceptance_certificates")
