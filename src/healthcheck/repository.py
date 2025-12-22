@@ -55,7 +55,7 @@ class HealthcheckRepository:
         VALUES($1, $2, $3, $4);
         """
 
-        await self.database.execute(query, status_data)
+        await self.database.execute(query, *status_data)
 
     @error_handler_http(
         status_code=500,
@@ -70,6 +70,6 @@ class HealthcheckRepository:
     async def get_healthcheck_status(self) -> Record:
         query = """
         SELECT * FROM fbs_acts_healthcheck_status
-        ORDER BY created_at DESC;
+        ORDER BY healthcheck_time DESC;
         """
         return await self.database.fetch(query)

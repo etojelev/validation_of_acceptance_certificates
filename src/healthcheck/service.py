@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from asyncpg.protocol import Record
 from fastapi import status
 
@@ -23,7 +25,9 @@ class HealthcheckService:
 
         data = [
             HealthcheckStatusSchema(
-                healthcheck_time=status.get("healthcheck_time"),
+                healthcheck_time=datetime.strftime(
+                    status.get("healthcheck_time"), "%d.%m.%Y-%H:%M"
+                ),
                 is_healthcheck=status.get("is_healthcheck_success"),
                 is_parcer_error=status.get("is_parcer_error"),
                 is_wb_api_error=status.get("is_wb_api_error"),

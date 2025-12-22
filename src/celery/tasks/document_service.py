@@ -176,6 +176,8 @@ async def _healthcheck() -> None:
         data = await healthcheck_service.healthcheck()
         if data:
             logger.info("Проверка данных успешно завершена!")
+            status_data = [datetime.now(), True, False, False]
+            await healthcheck_service.update_healthcheck_status(status_data=status_data)
 
         if not data:
             logger.warning(
