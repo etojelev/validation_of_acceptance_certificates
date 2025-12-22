@@ -1,3 +1,6 @@
+from datetime import datetime
+from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
@@ -13,3 +16,13 @@ class HealthcheckStatusSchema(BaseModel):
 class HealthcheckStatusResponseModel(BaseModel):
     status: int
     data: list[HealthcheckStatusSchema]
+
+
+class HealthcheckStatus(Enum):
+    SUCCESS = (True, False, False)
+    INNER_METHOD_FAIL = (False, True, False)
+    WB_API_FAIL = (False, False, True)
+
+    @property
+    def result(self) -> tuple[datetime, bool, bool, bool]:
+        return (datetime.now(),) + self.value

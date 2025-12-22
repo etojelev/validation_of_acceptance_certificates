@@ -17,7 +17,9 @@ class HealthcheckService:
     async def healthcheck(self) -> Record:
         return await self.repository.get_data_for_healthcheck()
 
-    async def update_healthcheck_status(self, status_data: list) -> None:
+    async def update_healthcheck_status(
+        self, status_data: tuple[datetime, bool, bool, bool]
+    ) -> None:
         await self.repository.update_healthcheck_status(status_data=status_data)
 
     async def get_healthcheck_status(self) -> HealthcheckStatusResponseModel:

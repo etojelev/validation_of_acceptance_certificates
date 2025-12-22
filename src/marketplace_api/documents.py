@@ -70,7 +70,9 @@ class Documents(Account):
                         Превышен лимит запросов, попытка {retries + 1}. Ожидание: 5 минут""")
                         await asyncio.sleep(300)
 
-                    if error.status == 500:
-                        logger.error(f"Status code: {error.status}, WB API недоступно!")
+                    if error.status != 200:
+                        logger.error(
+                            f"Status code: {error.status}, WB API не стабилен!"
+                        )
                         return int(error.status)
             return None
