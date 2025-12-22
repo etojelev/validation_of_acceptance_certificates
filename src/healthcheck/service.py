@@ -3,11 +3,11 @@ from datetime import datetime
 from asyncpg.protocol import Record
 from fastapi import status
 
-from src.documents_validation.schema import (
+from src.healthcheck.repository import HealthcheckRepository
+from src.healthcheck.schema import (
     HealthcheckStatusResponseModel,
     HealthcheckStatusSchema,
 )
-from src.healthcheck.repository import HealthcheckRepository
 
 
 class HealthcheckService:
