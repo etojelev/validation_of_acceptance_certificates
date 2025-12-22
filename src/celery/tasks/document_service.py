@@ -6,7 +6,7 @@ from typing import Any
 
 from src.celery.celery import celery_app
 from src.dependencies.database import DatabasePoolManager
-from src.documents_validation.repository import DocumentsRepository
+from src.document.repository import DocumentsRepository
 from src.healthcheck.schema import HealthcheckStatus
 from src.healthcheck.service import HealthcheckRepository, HealthcheckService
 from src.marketplace_api.documents import Documents

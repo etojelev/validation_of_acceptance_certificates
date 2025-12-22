@@ -6,7 +6,7 @@ from typing import Any
 import aiohttp.client_exceptions
 
 from src.account import Account
-from src.documents_validation.schema import DocumentSchema
+from src.document.schema import DocumentSchema
 
 logger = getLogger(__name__)
 
