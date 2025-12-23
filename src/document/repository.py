@@ -71,7 +71,11 @@ class DocumentsRepository:
             afa.document,
             afa.account,
             afa.date
-        FROM order_status_log osl
+        FROM (
+            SELECT DISTINCT ON (order_id) *
+            FROM order_status_log
+            ORDER BY order_id, status, created_at DESC
+        ) osl
         LEFT JOIN acceptance_fbs_acts_new afa
         ON osl.order_id::text = afa.order_number
         WHERE
