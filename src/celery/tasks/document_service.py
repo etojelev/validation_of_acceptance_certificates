@@ -37,7 +37,7 @@ class DocumentsService:
 
         documents_dict: dict[str, Any] = {}
         for (account, _), result in zip(tasks, results, strict=False):
-            if isinstance(result, Exception):
+            if isinstance(result, Exception) or not isinstance(result, str):
                 logger.error(f"Error for account {account}: {result}")
                 documents_dict[account] = None
             else:
@@ -50,7 +50,7 @@ class DocumentsService:
         all_data = []
 
         for account, base64_string in documents_dict.items():
-            if not base64_string:
+            if base64_string is None:
                 logger.warning(f"Аккаунт {account}: Нет данных для обработки!")
                 continue
 
@@ -70,7 +70,7 @@ class DocumentsService:
 
         data_for_insert = [
             (
-                str(order_data["order_id"]),
+                int(order_data["order_id"]),
                 str(order_data["sticker"]),
                 int(order_data["count"]),
                 f"act-income-mp-{item['supply_id'].split('-')[-1]}.zip",
