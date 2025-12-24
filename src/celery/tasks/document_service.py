@@ -7,6 +7,7 @@ from typing import Any
 from src.celery.celery import celery_app
 from src.dependencies.database import DatabasePoolManager
 from src.document.repository import DocumentsRepository
+from src.document.schema import DocumentDataForValidate
 from src.healthcheck.schema import HealthcheckStatus
 from src.healthcheck.service import HealthcheckRepository, HealthcheckService
 from src.marketplace_api.documents import Documents
@@ -92,6 +93,42 @@ class DocumentsService:
         if isinstance(fresh_data, int):
             return fresh_data
         return None
+
+    async def get_document_number_and_supply_id(self) -> list[DocumentDataForValidate]:
+        """
+        Метод для получения ID поставок по дате формирования акта и имени аккаунта ДЛЯ ВСЕХ АККАУНТОВ
+        """
+        data = get_tokens()
+        date_for_query = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        tasks = []
+        for account in data.keys():
+            task = self.documents_repository.get_document_number_and_supply_id(
+                document_date=date_for_query, account=account
+            )
+            tasks.append(task)
+
+        records = await asyncio.gather(*tasks, return_exceptions=True)
+
+        valid_records = []
+        for account, result in zip(data.keys(), records, strict=False):
+            if isinstance(result, Exception):
+                logger.error(
+                    f"Ошибка в получении данных из акта для аккаунта {account}: {result}"
+                )
+            elif isinstance(result, list):
+                valid_records.extend(result)
+            elif isinstance(result, dict):
+                valid_records.append(result)
+
+        return [
+            DocumentDataForValidate(
+                account=record.get("account"),
+                document_number=record.get("document_number"),
+                document_date=record.get("date"),
+                supply_id=f"WB-GI-{record.get('document_number')}",
+            )
+            for record in valid_records
+        ]
 
 
 @celery_app.task(name="update_acceptance_certificates_task")
