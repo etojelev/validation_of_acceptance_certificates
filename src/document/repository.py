@@ -109,13 +109,13 @@ class DocumentsRepository:
             SELECT afan.order_number
             FROM acceptance_fbs_acts_new afan
             WHERE afan.account = $1
-                AND afan.document_number = $2
+                AND afan.document_number = $2::text
                 AND afan.date = $3
         ),
         orders_by_our_service AS (
-            SELECT sao.id
-            FROM supplies_and_orders sao
-            WHERE sao.supply_id = $4
+            SELECT atsm.id
+            FROM assembly_task_status_model atsm
+            WHERE atsm.supply_id = $4
         ),
         matching_values AS (
             SELECT order_number AS value
@@ -124,14 +124,14 @@ class DocumentsRepository:
             SELECT id::text
             FROM orders_by_our_service
         ),
-        only_in_first AS (
+        only_in_acts AS (
             SELECT order_number AS value
             FROM orders_by_document_and_account
             EXCEPT
             SELECT id::text
             FROM orders_by_our_service
         ),
-        only_in_second AS (
+        only_in_our_service AS (
             SELECT id::text AS value
             FROM orders_by_our_service
             EXCEPT
@@ -140,11 +140,11 @@ class DocumentsRepository:
         )
         SELECT
             (SELECT COUNT(*) FROM matching_values) AS matching_count,
-            (SELECT COUNT(*) FROM only_in_first) AS only_in_first_count,
-            (SELECT COUNT(*) FROM only_in_second) AS only_in_second_count,
+            (SELECT COUNT(*) FROM only_in_acts) AS only_in_acts,
+            (SELECT COUNT(*) FROM only_in_our_service) AS only_in_our_service,
             CASE
-                WHEN (SELECT COUNT(*) FROM only_in_first) = 0
-                    AND (SELECT COUNT(*) FROM only_in_second) = 0
+                WHEN (SELECT COUNT(*) FROM only_in_acts) = 0
+                    AND (SELECT COUNT(*) FROM only_in_our_service) = 0
                 THEN true
                 ELSE false
             END AS sets_are_equal;
@@ -152,3 +152,28 @@ class DocumentsRepository:
         return await self.database.fetch(
             query, account, document_number, document_date, supply_id
         )
+
+    @error_handler_http(
+        status_code=500,
+        message="Database occure error",
+        exceptions=(
+            PostgresError,
+            InterfaceError,
+            ConnectionFailureError,
+            ConnectionDoesNotExistError,
+        ),
+    )
+    async def get_document_number_and_supply_id(
+        self, document_date: str, account: str
+    ) -> Record:
+        query = """
+        SELECT DISTINCT
+            afan.document_number,
+            afan.account,
+            afan.date
+        FROM acceptance_fbs_acts_new afan
+        WHERE afan.date = $1::date AND
+        afan.account = $2::text;
+        """
+
+        return self.database.fetch(query, document_date, account)
