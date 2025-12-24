@@ -99,7 +99,7 @@ class DocumentsService:
         Метод для получения ID поставок по дате формирования акта и имени аккаунта ДЛЯ ВСЕХ АККАУНТОВ
         """
         data = get_tokens()
-        date_for_query = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        date_for_query = datetime.now() - timedelta(days=1)
         tasks = []
         for account in data.keys():
             task = self.documents_repository.get_document_number_and_supply_id(
@@ -129,6 +129,79 @@ class DocumentsService:
             )
             for record in valid_records
         ]
+
+    async def validate_orders(
+        self, documents_data: list[DocumentDataForValidate]
+    ) -> None:
+        logger.info("Выполнение валидации акта приёма передачи")
+        tasks = []
+        task_info = []
+        for document in documents_data:
+            task = self.documents_repository.validate_orders(
+                account=document.account,
+                document_number=document.document_number,
+                document_date=document.document_date,
+                supply_id=document.supply_id,
+            )
+            tasks.append(task)
+            task_info.append((document.account, document.document_number))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        logger.info(f"Получено {len(results)} результатов от asyncio.gather.")
+
+        for idx, ((account, document_number), result) in enumerate(
+            zip(task_info, results, strict=False)
+        ):
+            logger.debug(
+                f"[{idx}] Обработка: Аккаунт={account}, Акт={document_number}."
+            )
+
+            if isinstance(result, Exception):
+                logger.error(
+                    f"Аккаунт: {account}. Ошибка в валидации акта {document_number}: {result}"
+                )
+                continue  # Переходим к следующей итерации
+
+            # Логируем сам результат для отладки
+            logger.debug(
+                f"[{idx}] Тип результата: {type(result)}. Содержимое: {result}"
+            )
+
+            if not result or not isinstance(result, list):
+                logger.warning(
+                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Некорректный тип результата или результат пуст."
+                )
+                continue
+
+            if len(result) == 0:
+                logger.warning(
+                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Запрос вернул 0 строк."
+                )
+                continue
+
+            for record in result:
+                # Сперва посмотрим, что вернулось
+                logger.info(
+                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Сырая запись: {record}"
+                )
+
+                # Ключ 'sets_are_equal' может отсутствовать, быть строкой или булевым значением
+                sets_equal_raw = record.get("sets_are_equal")
+                logger.debug(
+                    f"[{idx}] sets_are_equal (сырое значение) = {sets_equal_raw} (тип: {type(sets_equal_raw)})"
+                )
+
+                # Гибкая проверка значения
+                if sets_equal_raw in [True, "true", "t", "1", 1]:
+                    logger.info(f"Аккаунт: {account}, акт {document_number} валиден")
+                else:
+                    logger.warning(
+                        f"Аккаунт: {account}, акт {document_number} НЕ валиден. "
+                        f"matching_count: {record.get('matching_count')}, "
+                        f"only_in_acts: {record.get('only_in_acts')}, "
+                        f"only_in_our_service: {record.get('only_in_our_service')}"
+                    )
 
 
 @celery_app.task(name="update_acceptance_certificates_task")
@@ -246,6 +319,52 @@ async def _healthcheck() -> None:
     except Exception as error:
         logger.error(
             f"Ошибка в выполнении периодической задачи обновления актов приема передачи: {error}"
+        )
+    finally:
+        if pool:
+            await pool.close()
+
+
+@celery_app.task(name="validate_orders")
+def auto_validate_orders() -> None:
+    try:
+        logger.info("Выполнение автоматической валидации актов приёма передачи")
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("Event loop is closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        loop.run_until_complete(_validate_orders())
+    except Exception as error:
+        logger.error(
+            f"Ошибка в выполнении автоматической валидации актов приёма передачи: {error}"
+        )
+
+
+async def _validate_orders() -> None:
+    from src.settings import get_settings
+
+    pool = None
+    try:
+        pool = DatabasePoolManager(
+            user=get_settings().POSTGRES_USER,
+            password=get_settings().POSTGRES_PASSWORD,
+            db=get_settings().POSTGRES_DB,
+            host=get_settings().POSTGRES_HOST,
+            port=get_settings().POSTGRES_PORT,
+            pool_size=get_settings().POOL_SIZE,
+        )
+
+        await pool.create_pool()
+
+        document_service = DocumentsService(db=pool)
+        document_data = await document_service.get_document_number_and_supply_id()
+        await document_service.validate_orders(documents_data=document_data)
+    except Exception as error:
+        logger.error(
+            f"Ошибка в выполнении периодической задачи валидации актов приема передачи: {error}"
         )
     finally:
         if pool:

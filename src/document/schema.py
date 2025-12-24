@@ -32,7 +32,7 @@ class ValidatedOrder(BaseModel):
 class DocumentDataForValidate(BaseModel):
     account: str = Field(description="Имя аккаунта")
     document_number: str = Field(description="Номер акта приёма передачи")
-    document_date: str = Field(
+    document_date: date = Field(
         description="Дата формирования акта приёма передачи в формате str"
     )
     supply_id: str = Field(description="ID поставки")

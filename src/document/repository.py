@@ -176,4 +176,4 @@ class DocumentsRepository:
         afan.account = $2::text;
         """
 
-        return self.database.fetch(query, document_date, account)
+        return await self.database.fetch(query, document_date, account)
