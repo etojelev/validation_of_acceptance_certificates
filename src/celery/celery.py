@@ -28,7 +28,11 @@ def create_celery() -> Celery:
             "task": "update_acceptance_certificates_task",
             "schedule": crontab(hour=4, minute=10),
         },
-        "healthcheck": {"task": "healthcheck", "schedule": 60.0},
+        "healthcheck": {"task": "healthcheck", "schedule": crontab(hour=6, minute=30)},
+        "validate_orders": {
+            "task": "validate_orders",
+            "schedule": crontab(hour=17, minute=54),
+        },
     }
 
     return celery_app

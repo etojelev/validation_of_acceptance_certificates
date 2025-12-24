@@ -27,3 +27,12 @@ class ValidatedOrder(BaseModel):
     document_date: date | None = Field(
         description="Дата создания акта приёма передачи (None, если СЗ ещё не добавлена в поставку)"
     )
+
+
+class DocumentDataForValidate(BaseModel):
+    account: str = Field(description="Имя аккаунта")
+    document_number: str = Field(description="Номер акта приёма передачи")
+    document_date: date = Field(
+        description="Дата формирования акта приёма передачи в формате str"
+    )
+    supply_id: str = Field(description="ID поставки")
