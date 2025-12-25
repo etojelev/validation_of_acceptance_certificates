@@ -161,9 +161,8 @@ class DocumentsService:
                 logger.error(
                     f"Аккаунт: {account}. Ошибка в валидации акта {document_number}: {result}"
                 )
-                continue  # Переходим к следующей итерации
+                continue
 
-            # Логируем сам результат для отладки
             logger.debug(
                 f"[{idx}] Тип результата: {type(result)}. Содержимое: {result}"
             )
@@ -181,18 +180,15 @@ class DocumentsService:
                 continue
 
             for record in result:
-                # Сперва посмотрим, что вернулось
                 logger.info(
                     f"[{idx}] Аккаунт: {account}, акт {document_number}: Сырая запись: {record}"
                 )
 
-                # Ключ 'sets_are_equal' может отсутствовать, быть строкой или булевым значением
                 sets_equal_raw = record.get("sets_are_equal")
                 logger.debug(
                     f"[{idx}] sets_are_equal (сырое значение) = {sets_equal_raw} (тип: {type(sets_equal_raw)})"
                 )
 
-                # Гибкая проверка значения
                 if sets_equal_raw in [True, "true", "t", "1", 1]:
                     logger.info(f"Аккаунт: {account}, акт {document_number} валиден")
                 else:
