@@ -31,7 +31,7 @@ def create_celery() -> Celery:
         "healthcheck": {"task": "healthcheck", "schedule": crontab(hour=6, minute=30)},
         "validate_orders": {
             "task": "validate_orders",
-            "schedule": crontab(hour=17, minute=54),
+            "schedule": crontab(hour=8),
         },
     }
 

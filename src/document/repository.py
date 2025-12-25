@@ -113,9 +113,10 @@ class DocumentsRepository:
                 AND afan.date = $3
         ),
         orders_by_our_service AS (
-            SELECT atsm.id
+            SELECT DISTINCT atsm.id, atsm.created_at_db
             FROM assembly_task_status_model atsm
             WHERE atsm.supply_id = $4
+            ORDER BY atsm.created_at_db DESC
         ),
         matching_values AS (
             SELECT order_number AS value

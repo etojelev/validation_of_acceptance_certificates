@@ -148,56 +148,17 @@ class DocumentsService:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        logger.info(f"Получено {len(results)} результатов от asyncio.gather.")
-
-        for idx, ((account, document_number), result) in enumerate(
-            zip(task_info, results, strict=False)
-        ):
-            logger.debug(
-                f"[{idx}] Обработка: Аккаунт={account}, Акт={document_number}."
-            )
-
+        for (account, document_number), result in zip(task_info, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(
                     f"Аккаунт: {account}. Ошибка в валидации акта {document_number}: {result}"
                 )
-                continue
-
-            logger.debug(
-                f"[{idx}] Тип результата: {type(result)}. Содержимое: {result}"
-            )
-
-            if not result or not isinstance(result, list):
-                logger.warning(
-                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Некорректный тип результата или результат пуст."
-                )
-                continue
-
-            if len(result) == 0:
-                logger.warning(
-                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Запрос вернул 0 строк."
-                )
-                continue
-
-            for record in result:
-                logger.info(
-                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Сырая запись: {record}"
-                )
-
-                sets_equal_raw = record.get("sets_are_equal")
-                logger.debug(
-                    f"[{idx}] sets_are_equal (сырое значение) = {sets_equal_raw} (тип: {type(sets_equal_raw)})"
-                )
-
-                if sets_equal_raw in [True, "true", "t", "1", 1]:
-                    logger.info(f"Аккаунт: {account}, акт {document_number} валиден")
-                else:
-                    logger.warning(
-                        f"Аккаунт: {account}, акт {document_number} НЕ валиден. "
-                        f"matching_count: {record.get('matching_count')}, "
-                        f"only_in_acts: {record.get('only_in_acts')}, "
-                        f"only_in_our_service: {record.get('only_in_our_service')}"
-                    )
+            elif isinstance(result, list):
+                for record in result:
+                    if record.get("sets_are_equal"):
+                        logger.info(
+                            f"Аккаунт: {account}, акт {document_number} валиден"
+                        )
 
 
 @celery_app.task(name="update_acceptance_certificates_task")
