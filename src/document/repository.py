@@ -35,9 +35,10 @@ class DocumentsRepository:
     ) -> None:
         query = """
         INSERT INTO acceptance_fbs_acts_new
-            (order_number, unit, sticker, quantity, document, document_number, date, account)
+            (order_number, unit, sticker, quantity, document, document_number, date, account, created_at)
         VALUES
-            ($1, 'шт.', $2, $3, $4, $5, $6, $7)
+            ($1, 'шт.', $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT DO NOTHING
         """
 
         await self.database.executemany(query, certificates)
@@ -105,50 +106,46 @@ class DocumentsRepository:
         self, account: str, document_number: str, document_date: str, supply_id: str
     ) -> Record:
         query = """
-        WITH orders_by_document_and_account AS (
-            SELECT afan.order_number
+        WITH acts AS (
+            SELECT afan.order_number::text AS order_id
             FROM acceptance_fbs_acts_new afan
             WHERE afan.account = $1
-                AND afan.document_number = $2::text
-                AND afan.date = $3
+              AND afan.document_number = $2::text
+              AND afan.date = $3
         ),
-        orders_by_our_service AS (
-            SELECT DISTINCT atsm.id, atsm.created_at_db
-            FROM assembly_task_status_model atsm
-            WHERE atsm.supply_id = $4
-            ORDER BY atsm.created_at_db DESC
-        ),
-        matching_values AS (
-            SELECT order_number AS value
-            FROM orders_by_document_and_account
-            INTERSECT
-            SELECT id::text
-            FROM orders_by_our_service
-        ),
-        only_in_acts AS (
-            SELECT order_number AS value
-            FROM orders_by_document_and_account
-            EXCEPT
-            SELECT id::text
-            FROM orders_by_our_service
-        ),
-        only_in_our_service AS (
-            SELECT id::text AS value
-            FROM orders_by_our_service
-            EXCEPT
-            SELECT order_number
-            FROM orders_by_document_and_account
-        )
+        our_service AS (
+            SELECT id::text AS order_id
+            FROM (
+                SELECT
+                    atsm.id,
+                    atsm.supplier_status,
+                    atsm.wb_status,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY atsm.id
+                        ORDER BY atsm.created_at_db DESC
+                    ) AS rn
+                FROM assembly_task_status_model atsm
+                WHERE atsm.supply_id = $4
+            ) t
+            WHERE t.rn = 1
+              AND
+                (t.supplier_status <> 'cancel'
+                    OR t.wb_status NOT IN (
+                        'canceled',
+                        'canceled_by_client',
+                        'declined_by_client',
+                        'defect'
+                    )
+                )
+            )
         SELECT
-            (SELECT COUNT(*) FROM matching_values) AS matching_count,
-            (SELECT COUNT(*) FROM only_in_acts) AS only_in_acts,
-            (SELECT COUNT(*) FROM only_in_our_service) AS only_in_our_service,
-            CASE
-                WHEN (SELECT COUNT(*) FROM only_in_acts) = 0
-                    AND (SELECT COUNT(*) FROM only_in_our_service) = 0
-                THEN true
-                ELSE false
-            END AS sets_are_equal;
+            COUNT(*) FILTER (WHERE a.order_id IS NOT NULL AND o.order_id IS NOT NULL) AS matching_count,
+            COUNT(*) FILTER (WHERE a.order_id IS NOT NULL AND o.order_id IS NULL)     AS only_in_acts,
+            COUNT(*) FILTER (WHERE a.order_id IS NULL AND o.order_id IS NOT NULL)     AS only_in_our_service,
+            COUNT(*) FILTER (WHERE a.order_id IS NULL OR o.order_id IS NULL) = 0      AS sets_are_equal
+        FROM acts a
+        FULL JOIN our_service o
+               ON o.order_id = a.order_id;
         """
         return await self.database.fetch(
             query, account, document_number, document_date, supply_id
