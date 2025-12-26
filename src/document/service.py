@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import HTTPException, status
 
 from src.document.repository import DocumentsRepository
-from src.document.schema import ValidatedOrder
+from src.document.schema import AcceptedOrdersWithoutCertificate, ValidatedOrder
 
 
 class DocumentService:
@@ -65,4 +65,25 @@ class DocumentService:
                 document_date=record.get("date"),
             )
             for record in records
+        ]
+
+    async def get_validated_orders_without_certificates(
+        self,
+    ) -> list[AcceptedOrdersWithoutCertificate]:
+        result = await self.repository.get_accepted_orders_without_certificates()
+        print(result[0])
+        print(dict(result[0]))
+
+        return [
+            AcceptedOrdersWithoutCertificate(
+                order_id=record.get("id"),
+                supply_id=record.get("supply_id"),
+                inner_status=record.get("inner_status"),
+                supplier_status=record.get("supplier_status"),
+                wb_status=record.get("wb_status"),
+                reception_time=record.get("reception_time"),
+                supply_name=record.get("supply_name"),
+                account=record.get("account"),
+            )
+            for record in result
         ]

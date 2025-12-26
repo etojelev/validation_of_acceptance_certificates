@@ -49,6 +49,7 @@ class DocumentsService:
     async def extract_and_parce_excel(self) -> list | int:
         documents_dict = await self.download_documents()
         all_data = []
+        update_date = date.today()
 
         for account, base64_string in documents_dict.items():
             if base64_string is None:
@@ -71,13 +72,14 @@ class DocumentsService:
 
         data_for_insert = [
             (
-                int(order_data["order_id"]),
+                str(order_data["order_id"]),
                 str(order_data["sticker"]),
                 int(order_data["count"]),
                 f"act-income-mp-{item['supply_id'].split('-')[-1]}.zip",
                 item["supply_id"].split("-")[-1],
                 date.fromisoformat(item["date"]),
                 item["account"],
+                update_date,
             )
             for item in all_data
             for order_data in item["data"]
@@ -148,60 +150,23 @@ class DocumentsService:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        logger.info(f"Получено {len(results)} результатов от asyncio.gather.")
-
-        for idx, ((account, document_number), result) in enumerate(
-            zip(task_info, results, strict=False)
-        ):
-            logger.debug(
-                f"[{idx}] Обработка: Аккаунт={account}, Акт={document_number}."
-            )
-
+        for (account, document_number), result in zip(task_info, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(
                     f"Аккаунт: {account}. Ошибка в валидации акта {document_number}: {result}"
                 )
-                continue  # Переходим к следующей итерации
-
-            # Логируем сам результат для отладки
-            logger.debug(
-                f"[{idx}] Тип результата: {type(result)}. Содержимое: {result}"
-            )
-
-            if not result or not isinstance(result, list):
-                logger.warning(
-                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Некорректный тип результата или результат пуст."
-                )
-                continue
-
-            if len(result) == 0:
-                logger.warning(
-                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Запрос вернул 0 строк."
-                )
-                continue
-
-            for record in result:
-                # Сперва посмотрим, что вернулось
-                logger.info(
-                    f"[{idx}] Аккаунт: {account}, акт {document_number}: Сырая запись: {record}"
-                )
-
-                # Ключ 'sets_are_equal' может отсутствовать, быть строкой или булевым значением
-                sets_equal_raw = record.get("sets_are_equal")
-                logger.debug(
-                    f"[{idx}] sets_are_equal (сырое значение) = {sets_equal_raw} (тип: {type(sets_equal_raw)})"
-                )
-
-                # Гибкая проверка значения
-                if sets_equal_raw in [True, "true", "t", "1", 1]:
-                    logger.info(f"Аккаунт: {account}, акт {document_number} валиден")
-                else:
-                    logger.warning(
-                        f"Аккаунт: {account}, акт {document_number} НЕ валиден. "
-                        f"matching_count: {record.get('matching_count')}, "
-                        f"only_in_acts: {record.get('only_in_acts')}, "
-                        f"only_in_our_service: {record.get('only_in_our_service')}"
-                    )
+            elif isinstance(result, list):
+                for record in result:
+                    if record.get("sets_are_equal"):
+                        logger.info(
+                            f"Аккаунт: {account}, акт {document_number} валиден"
+                        )
+                    elif not record.get("sets_are_equal"):
+                        logger.info(
+                            f"Аккаунт: {account}, акт {document_number} РАСХОЖДЕНИЯ!\n"
+                            f"Количество сборочных заданий в нашей базе данных: {record.get('only_in_our_service')}.\n"
+                            f"Количество сборочных заданий в актах: {record.get('only_in_acts')}.\n"
+                        )
 
 
 @celery_app.task(name="update_acceptance_certificates_task")

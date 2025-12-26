@@ -11,7 +11,6 @@ services:
       - .env
     environment:
       - REDIS_HOST=redis
-      - POSTGRES_HOST=172.17.0.1
     ports:
       - "8309:8009"
 
@@ -37,7 +36,6 @@ services:
       - REDIS_HOST=redis
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - POSTGRES_HOST=172.17.0.1
     volumes:
       - .:/app
     command:
@@ -62,7 +60,6 @@ services:
     environment:
       - REDIS_HOST=redis
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - POSTGRES_HOST=172.17.0.1
     volumes:
       - .:/app
       - celery_beat_data:/tmp
