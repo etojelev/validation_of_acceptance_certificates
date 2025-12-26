@@ -49,6 +49,7 @@ class DocumentsService:
     async def extract_and_parce_excel(self) -> list | int:
         documents_dict = await self.download_documents()
         all_data = []
+        update_date = date.today()
 
         for account, base64_string in documents_dict.items():
             if base64_string is None:
@@ -71,13 +72,14 @@ class DocumentsService:
 
         data_for_insert = [
             (
-                int(order_data["order_id"]),
+                str(order_data["order_id"]),
                 str(order_data["sticker"]),
                 int(order_data["count"]),
                 f"act-income-mp-{item['supply_id'].split('-')[-1]}.zip",
                 item["supply_id"].split("-")[-1],
                 date.fromisoformat(item["date"]),
                 item["account"],
+                update_date,
             )
             for item in all_data
             for order_data in item["data"]
@@ -158,6 +160,12 @@ class DocumentsService:
                     if record.get("sets_are_equal"):
                         logger.info(
                             f"Аккаунт: {account}, акт {document_number} валиден"
+                        )
+                    elif not record.get("sets_are_equal"):
+                        logger.info(
+                            f"Аккаунт: {account}, акт {document_number} РАСХОЖДЕНИЯ!\n"
+                            f"Количество сборочных заданий в нашей базе данных: {record.get('only_in_our_service')}.\n"
+                            f"Количество сборочных заданий в актах: {record.get('only_in_acts')}.\n"
                         )
 
 
