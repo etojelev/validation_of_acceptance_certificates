@@ -71,8 +71,6 @@ class DocumentService:
         self,
     ) -> list[AcceptedOrdersWithoutCertificate]:
         result = await self.repository.get_accepted_orders_without_certificates()
-        print(result[0])
-        print(dict(result[0]))
 
         return [
             AcceptedOrdersWithoutCertificate(
