@@ -175,3 +175,85 @@ class DocumentsRepository:
         """
 
         return await self.database.fetch(query, document_date, account)
+
+    @error_handler_http(
+        status_code=500,
+        message="Database occure error",
+        exceptions=(
+            PostgresError,
+            InterfaceError,
+            ConnectionFailureError,
+            ConnectionDoesNotExistError,
+        ),
+    )
+    async def get_accepted_orders_without_certificates(self) -> Record:
+        query = """
+        WITH last_order_status AS (
+            SELECT order_id, status
+            FROM (
+                SELECT
+                    osl.order_id,
+                    osl.status,
+                    osl.created_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY osl.order_id
+                        ORDER BY osl.created_at DESC
+                    ) AS rn
+                FROM order_status_log osl
+            ) t
+            WHERE t.rn = 1
+              AND t.status IN (
+                  'IN_FINAL_SUPPLY',
+                  'SENT_TO_1C',
+                  'SHIPPED_WITH_BLOCK',
+                  'DELIVERED',
+                  'PARTIALLY_SHIPPED'
+              )
+        ),
+        last_supply_status AS (
+            SELECT id, supply_id, inner_status, supplier_status, wb_status
+            FROM (
+                SELECT
+                    atsm.id,
+                    atsm.supply_id,
+                    los.status as inner_status,
+                    atsm.supplier_status,
+                    atsm.wb_status,
+                    atsm.created_at_db,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY atsm.id
+                        ORDER BY atsm.created_at_db DESC
+                    ) AS rn
+                FROM assembly_task_status_model atsm
+                JOIN last_order_status los
+                  ON atsm.id = los.order_id
+            ) t
+            WHERE t.rn = 1
+              AND t.supplier_status NOT IN ('new', 'cancel')
+              AND t.wb_status NOT IN (
+                  'canceled',
+                  'canceled_by_client',
+                  'declined_by_client',
+                  'defect'
+              )
+        )
+        SELECT
+            lss.id,
+            sd.id AS supply_id,
+            lss.inner_status,
+            lss.supplier_status,
+            lss.wb_status,
+            sd.scan_dt as reception_time,
+            sd.name as supply_name,
+            sd.account as account
+        FROM supplies_data sd
+        JOIN last_supply_status lss
+          ON sd.id = lss.supply_id
+        WHERE sd.scan_dt > now() - interval '120 hours'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM acceptance_fbs_acts_new afan
+              WHERE afan.order_number = lss.id::text
+          );
+        """
+        return await self.database.fetch(query)

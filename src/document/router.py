@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, status
 
 from src.dependencies.get_validated_order import get_validated_order_service
-from src.document.schema import ValidatedOrder
+from src.document.schema import AcceptedOrdersWithoutCertificate, ValidatedOrder
 from src.document.service import DocumentService
 
 validated_order = APIRouter(prefix="/validated_order", tags=["/validated_order"])
@@ -31,3 +31,14 @@ async def get_validated_order(
         page=page,
         page_size=page_size,
     )
+
+
+@validated_order.get(
+    "/not_confirmed",
+    response_model=list[AcceptedOrdersWithoutCertificate],
+    status_code=status.HTTP_200_OK,
+)
+async def get_accepted_orders_without_certificates(
+    service: DocumentService = Depends(get_validated_order_service),
+) -> list[AcceptedOrdersWithoutCertificate]:
+    return await service.get_validated_orders_without_certificates()

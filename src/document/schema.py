@@ -36,3 +36,16 @@ class DocumentDataForValidate(BaseModel):
         description="Дата формирования акта приёма передачи в формате str"
     )
     supply_id: str = Field(description="ID поставки")
+
+
+class AcceptedOrdersWithoutCertificate(BaseModel):
+    order_id: int | None = Field(description="ID сборочного задания")
+    supply_id: str | None = Field(
+        description="ID поставки (None, если СЗ ещё не добавлена в поставку)"
+    )
+    inner_status: str | None = Field(description="Внутренний статус сборочного задания")
+    supplier_status: str | None = Field(description="Статус продавца")
+    wb_status: str | None = Field(description="Статус маркетплейса")
+    reception_time: datetime | None = Field(description="Время приёма поставки")
+    supply_name: str | None = Field(description="Внутреннее наименование поставки")
+    account: str | None = Field(description="Наименование аккаунта")
