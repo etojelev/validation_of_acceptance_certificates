@@ -49,3 +49,16 @@ class AcceptedOrdersWithoutCertificate(BaseModel):
     reception_time: datetime | None = Field(description="Время приёма поставки")
     supply_name: str | None = Field(description="Внутреннее наименование поставки")
     account: str | None = Field(description="Наименование аккаунта")
+
+
+class ValidateStatus(BaseModel):
+    account: str = Field(description="Имя аккаунта")
+    document_number: str = Field(description="Номер акта приёма передачи")
+    is_valid: bool = Field(description="Флаг валидности акта")
+    matching_count: int = Field(description="Количество совпавших сборочных заданий")
+    only_in_our_service: int | None = Field(
+        description="Сборочные задания, указанные только во внутренней БД"
+    )
+    only_in_acts: int | None = Field(
+        description="Сборочные задания, указанные только в актах"
+    )
